@@ -1,0 +1,1623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pitch Study — UI/UX sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap" rel="stylesheet">
+<style>
+/* Palette from the "Drift" style spec. The art direction is single-theme by design,
+   so the dark-scheme overrides intentionally keep the same tokens. */
+:root{
+  --ground:#efead7; --water:#93c4ac; --shade:#d2d0c4; --roof:#fcfcf2;
+  --accent:#ef2e2d; --ink:#302d26;
+  --hair:rgba(48,45,38,.16);
+  --gutter:24px; --mx:40px; --my:28px;
+  --sans:"Archivo","Helvetica Neue",Helvetica,"Nimbus Sans",sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --ground:#efead7; --ink:#302d26; }
+}
+:root[data-theme="dark"]{ --ground:#efead7; --ink:#302d26; }
+html{ height:100%; scroll-padding-top:env(safe-area-inset-top,0px); }
+body{ height:100%; margin:0; overflow:hidden; background:var(--water); color:var(--ink);
+  font-family:var(--sans); font-stretch:100%; -webkit-font-smoothing:antialiased; }
+*,*::before,*::after{ box-sizing:inherit; }
+
+#scene{ position:fixed; inset:0; width:100%; height:100%; display:block; }
+.vignette{ position:fixed; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%, rgba(40,35,20,0) 60%, rgba(40,35,20,.16) 100%); }
+
+/* Swiss 12-column field shared by every layer */
+.field{ position:fixed; inset:0; display:grid;
+  grid-template-columns:repeat(12,minmax(0,1fr)); column-gap:var(--gutter);
+  padding:calc(var(--my) + env(safe-area-inset-top,0px)) var(--mx) calc(var(--my) + env(safe-area-inset-bottom,0px));
+  pointer-events:none; }
+.field > *{ pointer-events:auto; }
+
+.gridov{ opacity:0; transition:opacity .6s ease; }
+.gridov span{ border-left:1px solid var(--hair); border-right:1px solid var(--hair); background:rgba(48,45,38,.025); }
+body.show-grid .gridov{ opacity:1; }
+.gridov > *{ pointer-events:none; }
+
+/* HUD */
+.hud{ grid-template-rows:auto 1fr auto; }
+.top{ grid-column:1/-1; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); column-gap:var(--gutter);
+  border-top:2px solid var(--ink); padding-top:10px; align-items:start; }
+.brand{ grid-column:1/4; font-weight:800; font-stretch:62%; font-size:30px; line-height:1; letter-spacing:-.01em; }
+.dot{ display:inline-block; width:.22em; height:.22em; border-radius:50%; background:var(--accent);
+  margin-left:.08em; vertical-align:baseline; }
+.meta{ font-size:13px; line-height:1.35; }
+.meta-ex{ grid-column:4/7; } .meta-in{ grid-column:7/10; } .meta-fb{ grid-column:10/13; }
+.lbl{ display:block; font-size:12px; line-height:1.3; opacity:.72; }
+.seg{ display:flex; flex-wrap:wrap; column-gap:16px; margin-top:-6px; }
+.seg button{ font:inherit; font-size:15px; color:var(--ink); background:none; border:0; padding:10px 0 8px;
+  min-height:44px; cursor:pointer; border-bottom:2px solid transparent; }
+.seg button[aria-pressed="true"]{ font-weight:700; border-bottom-color:var(--ink); }
+.seg button:hover{ border-bottom-color:var(--hair); }
+.seg button[aria-pressed="true"]:hover{ border-bottom-color:var(--ink); }
+.srcnote{ font-size:12px; margin-top:4px; min-height:16px; }
+button:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+
+.target{ grid-column:1/5; align-self:center; transition:opacity .5s ease; }
+.note{ font-weight:850; font-stretch:62%; font-size:clamp(120px,15vw,250px); line-height:.8;
+  letter-spacing:-.02em; margin:6px 0 10px -0.04em; }
+.sub{ font-size:14px; line-height:1.4; }
+.cents{ margin-top:34px; font-weight:700; font-stretch:72%; font-size:clamp(52px,5.4vw,88px); line-height:.9;
+  font-variant-numeric:tabular-nums; }
+.cents .unit{ font-weight:400; margin-left:.04em; }
+.dir{ font-size:20px; font-weight:600; margin-top:8px; min-height:28px; }
+
+.log{ grid-column:10/13; align-self:center; transition:opacity .5s ease; }
+.log ol{ list-style:none; margin:6px 0 0; padding:0; font-variant-numeric:tabular-nums; }
+.log li{ display:grid; grid-template-columns:3.2em 1fr 1fr; font-size:14px; line-height:1.9; border-top:1px solid var(--hair); }
+.log li:first-child{ font-weight:700; }
+.log li b{ font-weight:800; font-stretch:72%; font-size:16px; }
+
+.bottom{ grid-column:1/-1; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); column-gap:var(--gutter);
+  border-top:1px solid var(--ink); padding-top:10px; transition:opacity .5s ease; }
+.steps{ grid-column:1/9; list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(var(--n,8),minmax(0,1fr)); column-gap:8px; }
+.exsel{ font:inherit; font-size:15px; font-weight:700; color:var(--ink); border:0; border-bottom:2px solid var(--ink); border-radius:0;
+  padding:8px 26px 8px 0; margin-top:-2px; min-height:44px; max-width:100%; cursor:pointer; -webkit-appearance:none; appearance:none;
+  background-color:transparent; background-repeat:no-repeat; background-size:6px 6px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink) 50%),linear-gradient(135deg,var(--ink) 50%,transparent 50%);
+  background-position:right 10px top 55%, right 4px top 55%; }
+.exsel:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+.exsel option,.exsel optgroup{ color:#302d26; background:#efead7; }
+.steps li{ font-variant-numeric:tabular-nums; padding-bottom:6px; border-bottom:3px solid transparent; }
+.steps .num{ display:block; font-size:12px; opacity:.72; }
+.steps .nn{ display:block; font-weight:800; font-stretch:72%; font-size:24px; line-height:1.1; }
+.steps .res{ display:block; font-size:13px; min-height:18px; }
+.steps li.current{ border-bottom-color:var(--ink); }
+.steps li.current .num::after{ content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-left:6px; vertical-align:1px; }
+.steps li.miss .nn{ text-decoration:line-through; text-decoration-thickness:2px; }
+.steps li.todo{ opacity:.5; }
+.tol{ grid-column:9/11; }
+.stat{ grid-column:11/13; }
+.big{ font-weight:700; font-stretch:72%; font-size:34px; line-height:1.05; font-variant-numeric:tabular-nums; }
+.tolbar{ position:relative; height:12px; margin:6px 0 6px; border-left:2px solid var(--ink); border-right:2px solid var(--ink); }
+.tolbar::before{ content:""; position:absolute; left:0; right:0; top:50%; border-top:1px solid var(--hair); }
+.tolbar i{ position:absolute; top:0; bottom:0; left:50%; transform:translateX(-50%); width:66%;
+  border-left:2px solid var(--accent); border-right:2px solid var(--accent); transition:width .6s ease; }
+
+/* Posters (intro, summary) */
+.poster{ grid-template-rows:auto auto auto 1fr; align-content:start; padding-top:calc(118px + env(safe-area-inset-top,0px));
+  transition:opacity .7s ease, transform .9s cubic-bezier(.2,.7,.1,1); }
+.poster[hidden]{ display:grid; opacity:0; transform:translateY(-24px); pointer-events:none; }
+.poster[hidden] *{ pointer-events:none; }
+.mega{ grid-column:1/8; grid-row:1; margin:0; font-weight:850; font-stretch:62%; font-size:clamp(84px,12.5vw,224px);
+  line-height:.82; letter-spacing:-.015em; }
+.lede{ grid-column:1/5; grid-row:2; margin:28px 0 0; font-size:18px; line-height:1.45; max-width:34em; }
+.cta{ grid-column:1/6; grid-row:3; display:flex; align-items:center; gap:20px; margin-top:28px; }
+.btn{ font:inherit; font-weight:800; font-stretch:72%; font-size:22px; color:var(--ink); background:transparent;
+  border:3px solid var(--accent); padding:12px 30px; min-height:52px; cursor:pointer; border-radius:0; }
+.btn:hover{ background:var(--accent); color:var(--roof); }
+.hint{ font-size:14px; }
+.specs{ grid-column:9/13; grid-row:1/4; align-self:end; margin:0; }
+.specs div{ border-top:1px solid var(--ink); padding:8px 0 14px; }
+.specs dt{ font-size:12px; opacity:.72; }
+.specs dd{ margin:2px 0 0; font-size:15px; line-height:1.4; }
+.sumstats{ grid-column:1/9; grid-row:2; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); column-gap:var(--gutter); margin-top:30px; }
+.sumstats div{ border-top:2px solid var(--ink); padding-top:8px; }
+.sumstats .big{ font-size:clamp(40px,4.4vw,68px); }
+
+body.state-intro .target, body.state-intro .log, body.state-intro .bottom{ opacity:0; pointer-events:none; }
+body.state-summary .target, body.state-summary .log{ opacity:0; pointer-events:none; }
+
+.nogl{ position:fixed; inset:0; display:grid; place-items:center; padding:40px; font-size:18px; background:var(--ground); }
+.nogl[hidden]{ display:none; }
+
+/* Research page */
+.linkbtn{ font:inherit; font-size:14px; font-weight:600; font-stretch:100%; letter-spacing:0; color:var(--ink); background:none; border:0;
+  padding:12px 0 6px; min-height:44px; cursor:pointer; border-bottom:2px solid var(--ink); display:inline-block; margin-top:6px; }
+.linkbtn:hover{ border-bottom-color:var(--accent); }
+.research{ position:fixed; inset:0; z-index:20; background:var(--ground); overflow-y:auto; overscroll-behavior:contain;
+  transition:opacity .45s ease, transform .6s cubic-bezier(.2,.7,.1,1); }
+.research[hidden]{ display:block; visibility:hidden; opacity:0; transform:translateY(16px); pointer-events:none; }
+.rwrap{ display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); column-gap:var(--gutter); max-width:1480px; margin:0 auto;
+  padding:calc(var(--my) + env(safe-area-inset-top,0px)) var(--mx) calc(96px + env(safe-area-inset-bottom,0px)); }
+.rtop{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:flex-start; border-top:2px solid var(--ink); padding-top:10px;
+  position:sticky; top:0; background:var(--ground); z-index:2; }
+.rtitle{ grid-column:1/10; margin:56px 0 0; font-weight:850; font-stretch:62%; font-size:clamp(64px,9vw,156px); line-height:.84; letter-spacing:-.015em; }
+.rintro{ grid-column:1/6; margin:26px 0 56px; font-size:18px; line-height:1.5; }
+.finding{ grid-column:1/-1; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); column-gap:var(--gutter);
+  border-top:1px solid var(--ink); padding:22px 0 56px; }
+.ftext{ grid-column:1/5; }
+.ftext h2{ margin:0 0 14px; font-weight:800; font-stretch:68%; font-size:clamp(32px,3vw,46px); line-height:.98; }
+.ftext p{ margin:0 0 12px; font-size:16px; line-height:1.5; max-width:34em; }
+.fsrc{ font-size:13px; line-height:1.45; opacity:.8; margin-top:16px; }
+.ffig{ grid-column:6/13; }
+.ffig svg{ display:block; width:100%; height:auto; overflow:visible; }
+.fstat{ font-weight:800; font-stretch:62%; font-size:clamp(56px,6vw,96px); line-height:.9; font-variant-numeric:tabular-nums; margin-bottom:12px; }
+.legend{ font-size:13px; line-height:1.5; margin-top:12px; }
+.legend i{ display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:-1px; margin-right:6px; }
+.implications{ grid-column:1/-1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); column-gap:var(--gutter);
+  border-top:2px solid var(--ink); padding-top:14px; margin-top:8px; }
+.implications h3{ grid-column:1/-1; margin:0 0 18px; font-weight:800; font-stretch:68%; font-size:clamp(32px,3vw,46px); }
+.implications div{ border-top:1px solid var(--ink); padding-top:10px; }
+.implications b{ display:block; font-size:17px; margin-bottom:6px; }
+.implications p{ margin:0; font-size:15px; line-height:1.5; }
+.sources{ grid-column:1/-1; margin-top:56px; border-top:1px solid var(--ink); padding-top:10px; font-size:13px; line-height:1.6; }
+.sources ol{ margin:6px 0 0; padding-left:1.2em; max-width:72em; }
+.sources a{ color:var(--ink); }
+
+/* figure motion */
+.pdot{ fill:var(--shade); transform:scale(0); transform-box:fill-box; transform-origin:center;
+  transition:transform .5s cubic-bezier(.2,.8,.2,1), fill .6s ease; }
+.on .pdot{ transform:scale(1); }
+.on .pdot.amusic{ fill:var(--ink); }
+.pring{ fill:none; stroke:var(--ink); stroke-width:1.3; opacity:0; transition:opacity .6s ease; }
+.on .pring{ opacity:1; }
+.gdot{ fill:var(--ink); opacity:0; transform:translateY(14px); transform-box:fill-box;
+  transition:opacity .35s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+.on .gdot{ opacity:1; transform:none; }
+.draw{ stroke-dasharray:var(--len); stroke-dashoffset:var(--len); transition:stroke-dashoffset .9s cubic-bezier(.3,.7,.2,1); }
+.on .draw{ stroke-dashoffset:0; }
+.late{ opacity:0; transition:opacity .6s ease; }
+.on .late{ opacity:1; }
+.grow{ transform:scaleX(0); transform-box:fill-box; transform-origin:left center; transition:transform 1.4s cubic-bezier(.3,.7,.2,1); }
+.on .grow{ transform:scaleX(1); }
+.svgt{ font-family:var(--sans); fill:var(--ink); font-size:12px; }
+.svgt.b{ font-weight:700; font-size:13px; }
+
+@media (max-width: 860px){
+  :root{ --mx:20px; --my:16px; --gutter:12px; }
+  .field{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .top,.bottom{ grid-template-columns:repeat(4,minmax(0,1fr)); row-gap:6px; }
+  .brand{ grid-column:1/-1; font-size:26px; }
+  .meta-ex{ grid-column:1/-1; } .meta-in{ grid-column:1/3; } .meta-fb{ grid-column:3/5; }
+  .target{ grid-column:1/-1; align-self:start; margin-top:18px; }
+  .note{ font-size:110px; } .cents{ margin-top:14px; font-size:48px; }
+  .log{ display:none; }
+  .steps{ grid-column:1/-1; overflow-x:auto; grid-template-columns:repeat(var(--n,8),minmax(52px,1fr)); }
+  .tol{ grid-column:1/3; margin-top:8px; } .stat{ grid-column:3/5; margin-top:8px; }
+  .poster{ padding-top:calc(150px + env(safe-area-inset-top,0px)); }
+  .mega{ grid-column:1/-1; font-size:23vw; }
+  .lede,.cta,.sumstats{ grid-column:1/-1; }
+  .lede{ font-size:16px; }
+  .specs{ display:none; }
+  .gridov span:nth-child(n+5){ display:none; }
+  .rwrap{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .rtitle,.rintro{ grid-column:1/-1; }
+  .finding{ grid-template-columns:1fr; }
+  .ftext,.ffig{ grid-column:1/-1; }
+  .ffig{ margin-top:18px; }
+  .implications{ grid-template-columns:1fr; row-gap:14px; }
+}
+@media (prefers-reduced-motion: reduce){
+  .poster,.target,.log,.bottom,.tolbar i,.gridov,.research{ transition:none; }
+  .pdot,.pring,.gdot,.draw,.late,.grow{ transition:none !important; }
+}
+</style>
+</head>
+<body class="state-intro show-grid mode-guided">
+<canvas id="scene" aria-label="Diorama: a fern garden on a floating island, with a staircase of blocks, one per note, a red gate on each block, and a mouth that rises and falls with your pitch"></canvas>
+<div class="vignette"></div>
+
+<div class="field gridov" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span><span></span>
+</div>
+
+<!-- Persistent HUD -->
+<div class="field hud">
+  <header class="top">
+    <div class="brand">Pitch Study<span class="dot"></span><br><button type="button" class="linkbtn" id="researchBtn" aria-controls="research">What research says</button></div>
+    <div class="meta meta-ex">
+      <label class="lbl" for="exSel">Exercise, from C4</label>
+      <select id="exSel" class="exsel">
+        <optgroup label="Scales">
+          <option value="major" selected>Major scale</option>
+          <option value="minor">Natural minor scale</option>
+          <option value="pentaMaj">Major pentatonic</option>
+          <option value="pentaMin">Minor pentatonic</option>
+        </optgroup>
+        <optgroup label="Arpeggios">
+          <option value="arpMaj">Major arpeggio, up and down</option>
+          <option value="arpMin">Minor arpeggio, up and down</option>
+          <option value="arpDom7">Dominant seventh arpeggio, up and down</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="meta meta-in">
+      <span class="lbl">Voice input</span>
+      <div class="seg" id="srcSeg" role="group" aria-label="Voice input">
+        <button type="button" data-src="demo" aria-pressed="true">Demo singer</button>
+        <button type="button" data-src="pointer" aria-pressed="false">Pointer</button>
+        <button type="button" data-src="mic" aria-pressed="false">Microphone</button>
+      </div>
+      <div class="srcnote" id="srcNote" aria-live="polite"></div>
+    </div>
+    <div class="meta meta-fb">
+      <span class="lbl">Feedback</span>
+      <div class="seg" id="modeSeg" role="group" aria-label="Feedback mode">
+        <button type="button" data-mode="guided" aria-pressed="true">Guided</button>
+        <button type="button" data-mode="trace" aria-pressed="false">Trace</button>
+        <button type="button" data-mode="unaided" aria-pressed="false">Unaided</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="target" aria-label="Current note">
+    <span class="lbl" id="phaseLbl">Target</span>
+    <div class="note" id="noteName">C4</div>
+    <div class="sub" id="noteSub">Note 1 of 8, 261.6 Hz</div>
+    <div class="cents"><span id="centsVal">—</span><span class="unit">¢</span></div>
+    <div class="dir" id="dirText">Listen</div>
+  </section>
+
+  <aside class="log" aria-label="Recent notes">
+    <span class="lbl">Last notes, settled error and time to settle</span>
+    <ol id="log" aria-live="polite"></ol>
+  </aside>
+
+  <footer class="bottom">
+    <ol class="steps" id="steps" aria-label="Scale progress"></ol>
+    <div class="tol">
+      <span class="lbl">Gate tolerance</span>
+      <div class="big"><span id="tolVal">±40</span>¢</div>
+      <div class="tolbar" aria-hidden="true"><i id="tolGap"></i></div>
+      <div class="sub" id="tolNote">Two clean passes narrow it</div>
+    </div>
+    <div class="stat">
+      <span class="lbl">Median settled error</span>
+      <div class="big" id="medVal">—</div>
+      <div class="sub" id="nVal">No notes yet</div>
+    </div>
+  </footer>
+</div>
+
+<!-- Intro poster -->
+<section class="field poster" id="intro" aria-labelledby="introTitle">
+  <h1 class="mega" id="introTitle">Sing<br>the scale<span class="dot"></span></h1>
+  <p class="lede">A reference tone plays. Sing it back and steer the mouth into each red gate, higher or lower, until it settles. Each gate narrows as your voice gets more precise.</p>
+  <div class="cta">
+    <button type="button" class="btn" id="beginBtn">Begin</button>
+    <span class="hint">or press Space</span>
+  </div>
+  <dl class="specs">
+    <div><dt>What you'll sing</dt><dd id="introWhat">Major scale: 8 notes, C4 to C5. Choose another scale or an arpeggio above. Octaves are folded, so any voice range works.</dd></div>
+    <div><dt>How it scores</dt><dd>Hold within the gate for 0.7 s to pass. After 5.5 s the note counts as missed.</dd></div>
+    <div><dt>Setup</dt><dd>Headphones on, interface direct monitoring on for your own voice.</dd></div>
+    <div><dt>Keys</dt><dd>Space replays the tone. 1, 2, 3 switch feedback. G toggles the grid. R opens what research says.</dd></div>
+  </dl>
+</section>
+
+<!-- Summary poster -->
+<section class="field poster" id="summary" hidden aria-labelledby="sumTitle">
+  <h1 class="mega" id="sumTitle">Scale done<span class="dot"></span></h1>
+  <div class="sumstats">
+    <div><span class="lbl">Gates passed</span><div class="big" id="sumPass">—</div></div>
+    <div><span class="lbl">Median settled error</span><div class="big" id="sumMed">—</div></div>
+    <div><span class="lbl">Tolerance this run</span><div class="big" id="sumTol">—</div></div>
+  </div>
+  <div class="cta">
+    <button type="button" class="btn" id="againBtn">Sing it again</button>
+    <span class="hint">Your previous contour stays faintly on the diorama</span>
+  </div>
+</section>
+
+<!-- Research page -->
+<div class="research" id="research" hidden role="dialog" aria-modal="true" aria-labelledby="researchTitle">
+  <div class="rwrap">
+    <div class="rtop">
+      <div class="brand">Pitch Study<span class="dot"></span></div>
+      <button type="button" class="linkbtn" id="researchClose">Back to practice</button>
+    </div>
+    <h1 class="rtitle" id="researchTitle">What research says</h1>
+    <p class="rintro">Why the app works the way it does, and where the evidence stops. The studies below are small and short, so read them as good reasons, not guarantees.</p>
+
+    <section class="finding" data-fig="prevalence">
+      <div class="ftext">
+        <h2>Off-key singing is rarely tone deafness</h2>
+        <p>Congenital amusia, real tone deafness, was found in about 1.5% of people when tested on 20,850 participants. Older estimates put it near 4%.</p>
+        <p>For most people who sing off-key, the likely weak link is turning a heard pitch into the right vocal movement. That is a motor skill, and motor skills respond to practice.</p>
+        <div class="fsrc">Peretz and Vuvan, 2017, European Journal of Human Genetics [1]. Sensorimotor account: Musicae Scientiae, vol. 29 [3].</div>
+      </div>
+      <div class="ffig">
+        <div class="fstat" data-count>0.0%</div>
+        <div class="figslot"></div>
+        <div class="legend"><i style="background:var(--ink)"></i>1.5% current estimate, 3 in 200 &nbsp;&nbsp; <i style="border:1.3px solid var(--ink)"></i>older 4% estimate, 8 in 200</div>
+      </div>
+    </section>
+
+    <section class="finding" data-fig="feedback">
+      <div class="ftext">
+        <h2>Seeing your pitch helps more than hearing it alone</h2>
+        <p>Adults who sang off-key were randomly assigned to one 20-minute training. Everyone improved a little, but only the group that saw their pitch on screen, with a tone doubling their voice, improved significantly. The gain was largest on four-note melodies.</p>
+        <p>A separate study found two real-time displays both improved accuracy, and a simpler display worked better for people with some singing background.</p>
+        <div class="fsrc">Berglin et al., 2022, Psychology of Music [2]. University of Sydney study on real-time visual feedback [4].</div>
+      </div>
+      <div class="ffig"><div class="figslot"></div>
+        <div class="legend">Each dot is one participant.</div>
+      </div>
+    </section>
+
+    <section class="finding" data-fig="range">
+      <div class="ftext">
+        <h2>Practise across a wide range</h2>
+        <p>Off-key singers tend to stay inside a narrow band of notes, more than their voice requires. In a single-session study, the group matching pitches across a full octave got better at matching single notes. The group limited to a fifth did not, and neither did a control group.</p>
+        <div class="fsrc">"Effects of pitch range on singing accuracy training", Musicae Scientiae, vol. 29, pp. 240–255 [3].</div>
+      </div>
+      <div class="ffig"><div class="figslot"></div>
+        <div class="legend"><i style="background:var(--accent)"></i>significant improvement &nbsp;&nbsp; <i style="border:1.3px solid var(--ink)"></i>no significant change</div>
+      </div>
+    </section>
+
+    <section class="finding" data-fig="horizon">
+      <div class="ftext">
+        <h2>The evidence is short. Your plan is long.</h2>
+        <p>Each study above measured a single session. Six months of daily practice has not been tested in this way, so lasting gains are a reasonable bet, not a result.</p>
+        <p>That is why the app scores your unaided notes separately: they are your own long-term evidence.</p>
+        <div class="fsrc">Applies to [2] and [3]. Plan length assumes 20 minutes a day for 180 days.</div>
+      </div>
+      <div class="ffig"><div class="figslot"></div></div>
+    </section>
+
+    <section class="implications">
+      <h3>How Pitch Study uses this</h3>
+      <div><b>Guided mode shows and doubles your pitch</b><p>The live mouth and gate are the visual feedback; the soft tone under your voice is the audio doubling from the strongest result.</p></div>
+      <div><b>Exercises widen your range</b><p>Targets expand beyond a comfortable band over time, following the octave-range finding.</p></div>
+      <div><b>Unaided notes measure real progress</b><p>Feedback fades as you improve so you don't depend on the screen. Fading is our design choice, not a tested finding.</p></div>
+    </section>
+
+    <div class="sources">
+      <span class="lbl">Sources</span>
+      <ol>
+        <li id="src1">Peretz, I. and Vuvan, D. T. (2017). Prevalence of congenital amusia. European Journal of Human Genetics, 25(5), 625–630. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5437896/" target="_blank" rel="noopener">Read</a></li>
+        <li id="src2">Berglin et al. (2022). The effect of visual and auditory feedback on adult poor-pitch remediation. Psychology of Music. <a href="https://journals.sagepub.com/doi/10.1177/03057356211026730" target="_blank" rel="noopener">Read</a></li>
+        <li id="src3">Effects of pitch range on singing accuracy training. Musicae Scientiae, 29, 240–255. <a href="https://researchconnect.buffalo.edu/en/publications/effects-of-pitch-range-on-singing-accuracy-training/" target="_blank" rel="noopener">Read</a></li>
+        <li id="src4">Does real-time visual feedback improve pitch accuracy in singing? University of Sydney. <a href="https://ses.library.usyd.edu.au/handle/2123/1526" target="_blank" rel="noopener">Read</a></li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<div class="nogl" id="nogl" hidden>This sample needs WebGL. Open it in a current desktop browser with hardware acceleration enabled.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+
+const $ = (s) => document.querySelector(s);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------------------------------------------------------------- palette
+const PAL = {
+  ground:'#efead7', water:'#93c4ac', shade:'#d2d0c4', roof:'#fcfcf2',
+  accent:'#ef2e2d', accentBase:'#d62625', accentShade:'#9b1a1a',
+  ink:'#302d26', inkTop:'#45413a', inkShade:'#1f1d18'
+};
+
+// ---------------------------------------------------------------- exercise model
+const SPACING = 6, BLOCK = 4.6, BASEH = 0.9, PER_SEMI = 0.34;
+const HOVER = 5;          // mouth height above block top at 0 cents
+const K = 0.06;           // world units per cent
+const LISTEN = 1.1, HOLD = 0.7, NOTE_MAX = 5.5, TRAVEL = 1.1, RESULT = 0.8;
+const TOL_MIN = 10, TOL_MAX = 60;
+// Exercises as semitone offsets from C4. Arpeggios go up and come back down.
+const EXERCISES = {
+  major:    { name: 'Major scale',                             steps: [0, 2, 4, 5, 7, 9, 11, 12] },
+  minor:    { name: 'Natural minor scale',                     steps: [0, 2, 3, 5, 7, 8, 10, 12] },
+  pentaMaj: { name: 'Major pentatonic',                        steps: [0, 2, 4, 7, 9, 12] },
+  pentaMin: { name: 'Minor pentatonic',                        steps: [0, 3, 5, 7, 10, 12] },
+  arpMaj:   { name: 'Major arpeggio, up and down',             steps: [0, 4, 7, 12, 7, 4, 0] },
+  arpMin:   { name: 'Minor arpeggio, up and down',             steps: [0, 3, 7, 12, 7, 3, 0] },
+  arpDom7:  { name: 'Dominant seventh arpeggio, up and down',  steps: [0, 4, 7, 10, 12, 10, 7, 4] }
+};
+const NOTE_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];  // flat spellings suit C minor
+let EXERCISE = 'major';
+let SCALE = [];
+function buildScale(id) {
+  SCALE = EXERCISES[id].steps.map((s, i) => ({
+    s, i,
+    n: NOTE_NAMES[s % 12] + (4 + Math.floor(s / 12)),
+    f: 261.6256 * Math.pow(2, s / 12),
+    h: BASEH + s * PER_SEMI,     // block height follows pitch
+    x: i * SPACING
+  }));
+}
+buildScale(EXERCISE);
+
+// ---------------------------------------------------------------- renderer
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas: $('#scene'), antialias: true, stencil: true });
+} catch (e) { $('#nogl').hidden = false; return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(PAL.water);
+renderer.outputEncoding = THREE.LinearEncoding; // no tone mapping, palette stays exact
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 1, 500);
+const L = new THREE.Vector3(-0.55, 0.62, 0.35).normalize();
+
+// ---------------------------------------------------------------- toon material
+const VERT = `
+varying vec3 vN; varying vec3 vW;
+void main(){
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vW = w.xyz;
+  vN = normalize(mat3(modelMatrix) * normal);
+  gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+const FRAG = `
+uniform vec3 uBase, uTop, uShade, uLight, uFog;
+uniform float uFogNear, uFogFar, uAO;
+varying vec3 vN; varying vec3 vW;
+void main(){
+  vec3 n = normalize(vN);
+  float up = smoothstep(.55, .9, n.y);                 // roof mask
+  float band = smoothstep(-.05, .12, dot(n, uLight));  // lit vs shaded
+  vec3 col = mix(mix(uShade, uBase, band), uTop, up);
+  float ao = mix(1., smoothstep(0., 7., vW.y) * .25 + .75, uAO * (1. - up));
+  col *= ao;
+  float d = length(cameraPosition - vW);
+  col = mix(col, uFog, smoothstep(uFogNear, uFogFar, d) * .35);
+  gl_FragColor = vec4(col, 1.);
+}`;
+function toon(base, top, shade, ao) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uBase: { value: new THREE.Color(base) }, uTop: { value: new THREE.Color(top) },
+      uShade: { value: new THREE.Color(shade) }, uLight: { value: L },
+      uFog: { value: new THREE.Color(PAL.ground) },
+      uFogNear: { value: 60 }, uFogFar: { value: 120 }, uAO: { value: ao }
+    },
+    vertexShader: VERT, fragmentShader: FRAG
+  });
+}
+const matBuilding = toon(PAL.ground, PAL.roof, PAL.shade, 1);
+const matIsland   = toon(PAL.ground, PAL.ground, PAL.shade, 0);
+const matAccent   = toon(PAL.accentBase, PAL.accent, PAL.accentShade, 0);
+const matInk      = toon(PAL.ink, PAL.inkTop, PAL.inkShade, 0);
+const matTeeth    = toon(PAL.roof, PAL.roof, PAL.shade, 0);
+const matCavity   = toon(PAL.ink, PAL.ink, PAL.ink, 0);
+
+// The island writes stencil = 1 so projected shadows only land on the island,
+// and each shadow pixel bumps it to 2 so overlaps never stack darker.
+matIsland.stencilWrite = true;
+matIsland.stencilRef = 1;
+matIsland.stencilFunc = THREE.AlwaysStencilFunc;
+matIsland.stencilZPass = THREE.ReplaceStencilOp;
+
+const shadowMat = new THREE.MeshBasicMaterial({
+  color: 0x6a6658, transparent: true, opacity: 0.22, depthWrite: false
+});
+shadowMat.stencilWrite = true;
+shadowMat.stencilRef = 1;
+shadowMat.stencilFunc = THREE.EqualStencilFunc;
+shadowMat.stencilZPass = THREE.IncrementStencilOp;
+shadowMat.polygonOffset = true;
+shadowMat.polygonOffsetFactor = -1;
+shadowMat.polygonOffsetUnits = -1;
+
+// Planar projection along the light direction onto y = h.
+function shadowMatrix(h) {
+  const a = L.x / L.y, b = L.z / L.y, m = new THREE.Matrix4();
+  m.set(1, -a, 0, a * h,
+        0,  0, 0, h,
+        0, -b, 1, b * h,
+        0,  0, 0, 1);
+  return m;
+}
+const SM_GROUND = shadowMatrix(0.02);
+const casters = [];
+function addShadow(src, cond) {
+  const m = new THREE.Mesh(src.geometry, shadowMat);
+  m.matrixAutoUpdate = false;
+  m.frustumCulled = false;
+  m.renderOrder = 2;
+  scene.add(m);
+  casters.push({ src, m, cond });
+}
+function removeShadow(src) {
+  for (let i = casters.length - 1; i >= 0; i--) {
+    if (casters[i].src === src) { scene.remove(casters[i].m); casters.splice(i, 1); }
+  }
+}
+function chainVisible(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
+
+function flat(g) { if (g.index) g = g.toNonIndexed(); g.computeVertexNormals(); return g; }
+function box(w, h, d, mat, x, y, z, shadow = true) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  g.translate(0, h / 2, 0);
+  const m = new THREE.Mesh(g, mat);
+  m.position.set(x, y, z);
+  scene.add(m);
+  if (shadow) addShadow(m);
+  return m;
+}
+
+// ---------------------------------------------------------------- diorama
+// Seeded randomness: the garden is generative but stable between reloads.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rng = mulberry32(20261004);
+const rr = (a, b) => a + (b - a) * rng();
+
+// Organic outline: an ellipse perturbed by a few low-frequency harmonics. Vector2 holds (x, z).
+function blobOutline(cx, cz, rx, rz, n, amp) {
+  const ph = [rng() * 6.283, rng() * 6.283, rng() * 6.283];
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * Math.PI * 2;
+    const r = 1 + amp * (0.55 * Math.sin(3 * t + ph[0]) + 0.3 * Math.sin(5 * t + ph[1]) + 0.15 * Math.sin(11 * t + ph[2]))
+                + (rng() - 0.5) * amp * 0.25;
+    pts.push(new THREE.Vector2(cx + Math.cos(t) * rx * r, cz + Math.sin(t) * rz * r));
+  }
+  return pts;
+}
+function insidePoly(p, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if (((a.y > p.y) !== (b.y > p.y)) && (p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x)) c = !c;
+  }
+  return c;
+}
+const shrink = (poly, cx, cz, k) => poly.map(p => new THREE.Vector2(cx + (p.x - cx) * k, cz + (p.y - cz) * k));
+
+// Extrude an (x, z) outline into a faceted slab whose top sits at y = top.
+function slab(outline, holes, top, depth, mat) {
+  const sh = new THREE.Shape(outline.map(p => new THREE.Vector2(p.x, -p.y)));
+  holes.forEach(h => sh.holes.push(new THREE.Path(h.map(p => new THREE.Vector2(p.x, -p.y)))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 1 });
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, top - depth, 0);
+  const m = new THREE.Mesh(flat(g), mat);
+  scene.add(m);
+  return m;
+}
+
+const ISL = { cx: 21, cz: -1.5, rx: 39, rz: 15.5 };
+const POND = { cx: 28, cz: -9.5 };
+const islandOutline = blobOutline(ISL.cx, ISL.cz, ISL.rx, ISL.rz, 84, 0.13);
+const pondOutline = blobOutline(POND.cx, POND.cz, 3.6, 2.3, 18, 0.18);
+const island = slab(islandOutline, [pondOutline], 0, 2.4, matIsland);
+island.renderOrder = -1;
+// a smaller, deeper tier underneath reads as a chunk of earth lifted out of the water
+const matUnder = toon(PAL.ground, PAL.ground, PAL.shade, 0);
+slab(shrink(islandOutline, ISL.cx, ISL.cz, 0.84), [], -2.4, 1.8, matUnder);
+
+// one block per scale degree; height follows pitch
+let stairBlocks = [];
+function buildBlocks() {
+  stairBlocks.forEach(m => { removeShadow(m); scene.remove(m); m.geometry.dispose(); });
+  stairBlocks = SCALE.map(s => box(BLOCK, s.h, BLOCK, matBuilding, s.x, 0, 0));
+}
+buildBlocks();
+
+// ---------------------------------------------------------------- garden
+// Generative ferns: each frond is a quadratic curve with folded leaflets that taper to the tip.
+// Leaflets are merged into one mesh; an ink rachis line gives the botanical drawing its edge.
+const fernPos = [], fernW = [], rachPos = [], rachW = [];
+const UP = new THREE.Vector3(0, 1, 0);
+function bez(p0, p1, p2, s, out) {
+  const a = (1 - s) * (1 - s), b = 2 * (1 - s) * s, c = s * s;
+  return out.set(p0.x * a + p1.x * b + p2.x * c, p0.y * a + p1.y * b + p2.y * c, p0.z * a + p1.z * b + p2.z * c);
+}
+function tri(a, b, c, wa, wb, wc) {
+  fernPos.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  fernW.push(wa, wb, wc);
+}
+function addFern(x, y, z, size, tree = false) {
+  const n = tree ? 9 : 6 + Math.floor(rng() * 4);
+  const yaw0 = rng() * Math.PI * 2;
+  const base = new THREE.Vector3(x, y, z);
+  const P = new THREE.Vector3(), Q = new THREE.Vector3(), T = new THREE.Vector3(),
+        Sd = new THREE.Vector3(), D = new THREE.Vector3();
+  for (let k = 0; k < n; k++) {
+    const yaw = yaw0 + (k / n) * Math.PI * 2 + rr(-0.3, 0.3);
+    const dir = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
+    const len = size * rr(0.75, 1.15);
+    const lift = tree ? rr(0.2, 0.45) : rr(0.55, 0.95);
+    const droop = tree ? rr(0.35, 0.6) : rr(0.05, 0.35);
+    const p0 = base.clone();
+    const p1 = base.clone().addScaledVector(dir, len * 0.45).addScaledVector(UP, len * lift * 0.75);
+    const p2 = base.clone().addScaledVector(dir, len).addScaledVector(UP, len * (lift * 0.35 - droop));
+    const segs = 13;
+    let prev = null, prevW = 0;
+    for (let i = 0; i <= segs; i++) {
+      const s = 0.06 + (i / segs) * 0.92;
+      bez(p0, p1, p2, s, P);
+      bez(p0, p1, p2, Math.min(1, s + 0.02), Q);
+      T.subVectors(Q, P).normalize();
+      Sd.crossVectors(T, UP);
+      if (Sd.lengthSq() < 1e-6) Sd.set(-dir.z, 0, dir.x);
+      Sd.normalize();
+      if (prev) { rachPos.push(prev.x, prev.y, prev.z, P.x, P.y, P.z); rachW.push(prevW, s); }
+      prev = P.clone(); prevW = s;
+      const pl = len * 0.3 * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.04)), 0.85) * (1 - 0.35 * s);
+      if (pl < 0.05) continue;
+      const w = pl * 0.2;
+      const wt = Math.min(1, s + 0.08);
+      for (const side of [-1, 1]) {
+        // leaflet leans toward the tip and droops; a raised midpoint folds it into two shading bands
+        D.copy(Sd).multiplyScalar(side * Math.cos(0.6)).addScaledVector(T, Math.sin(0.6))
+          .addScaledVector(UP, -0.18 - droop * 0.4).normalize();
+        const B = P.clone().addScaledVector(D, pl);
+        const Mid = P.clone().addScaledVector(D, pl * 0.45);
+        const C1 = Mid.clone().addScaledVector(T, w).addScaledVector(UP, w * 0.7);
+        const C2 = Mid.clone().addScaledVector(T, -w).addScaledVector(UP, -w * 0.1);
+        tri(P, C1, B, s, wt, wt);
+        tri(P, B, C2, s, wt, wt);
+      }
+    }
+  }
+}
+
+// Placement: rejection sampling inside the island, clustered into groves by a smooth field,
+// keeping the staircase corridor and the strip right behind it clear so the gates stay legible.
+const corridor = (x, z) => x > -5 && x < 47 && z > -4.6 && z < 5.4;
+const behind = (x, z) => x > -5 && x < 47 && z <= -4.6 && z > -8;
+const islandInner = shrink(islandOutline, ISL.cx, ISL.cz, 0.9);
+const pondOuter = shrink(pondOutline, POND.cx, POND.cz, 1.45);
+const grove = (x, z) => { const v = 0.5 + 0.5 * Math.sin(x * 0.19 + 1.7) * Math.cos(z * 0.33 - 0.6); return v * v; };
+const placed = [];
+for (let tries = 0; placed.length < 64 && tries < 8000; tries++) {
+  const x = rr(ISL.cx - ISL.rx, ISL.cx + ISL.rx), z = rr(ISL.cz - ISL.rz, ISL.cz + ISL.rz);
+  const p = new THREE.Vector2(x, z);
+  if (!insidePoly(p, islandInner) || insidePoly(p, pondOuter) || corridor(x, z)) continue;
+  if (rng() > grove(x, z) * (behind(x, z) ? 0.35 : 1.2)) continue;
+  const size = rr(1.4, 2.6) * (0.75 + grove(x, z) * 0.6);
+  if (placed.some(q => Math.hypot(q.x - x, q.z - z) < (q.size + size) * 0.62)) continue;
+  placed.push({ x, z, size });
+}
+placed.forEach(f => addFern(f.x, 0, f.z, f.size));
+
+// A few tree ferns: the rare tall verticals that give the diorama its scale rhythm.
+const trees = [];
+for (let tries = 0; trees.length < 5 && tries < 4000; tries++) {
+  const x = rr(-16, 58), z = rr(ISL.cz - ISL.rz, ISL.cz + ISL.rz);
+  const okZone = z < -6.5 || (z > 6 && (x < -4 || x > 48));
+  if (!okZone || !insidePoly(new THREE.Vector2(x, z), islandInner) || insidePoly(new THREE.Vector2(x, z), pondOuter)) continue;
+  if (trees.some(t => Math.hypot(t.x - x, t.z - z) < 10)) continue;
+  trees.push({ x, z });
+}
+trees.forEach(({ x, z }) => {
+  const h = rr(4, 7.5);
+  const g = flat(new THREE.CylinderGeometry(0.2, 0.34, h, 7));
+  g.translate(0, h / 2, 0);
+  const trunk = new THREE.Mesh(g, matBuilding);
+  trunk.position.set(x, 0, z);
+  scene.add(trunk); addShadow(trunk);
+  addFern(x, h, z, rr(3.2, 4.4), true);
+});
+
+// Rocks around the pond and along the shore, flattened icosahedra.
+function rock(x, z, r) {
+  const g = new THREE.IcosahedronGeometry(r, 0);
+  g.scale(rr(0.85, 1.25), rr(0.45, 0.7), rr(0.85, 1.2));
+  g.rotateY(rng() * Math.PI * 2);
+  const m = new THREE.Mesh(flat(g), matBuilding);
+  m.position.set(x, -r * 0.12, z);
+  scene.add(m); addShadow(m);
+}
+pondOutline.forEach((p, i) => {
+  if (i % 2) return;
+  const dx = p.x - POND.cx, dz = p.y - POND.cz, d = Math.hypot(dx, dz) || 1;
+  rock(p.x + dx / d * 0.55, p.y + dz / d * 0.55, rr(0.3, 0.6));
+});
+for (let i = 0; i < 16; i++) {
+  const p = islandOutline[Math.floor(rng() * islandOutline.length)];
+  const x = ISL.cx + (p.x - ISL.cx) * 0.95, z = ISL.cz + (p.y - ISL.cz) * 0.95;
+  if (!corridor(x, z)) rock(x, z, rr(0.4, 1.0));
+}
+
+// Stepping stones in front of the staircase: the path the mouth "walks".
+const matStone = toon(PAL.roof, PAL.roof, PAL.shade, 0);
+for (let x = -4; x <= 46; x += rr(1.5, 2.1)) {
+  const r = rr(0.5, 0.85);
+  const g = new THREE.CylinderGeometry(r, r * 1.05, 0.14, 6);
+  g.translate(0, 0.07, 0);
+  g.rotateY(rng() * Math.PI);
+  const m = new THREE.Mesh(flat(g), matStone);
+  m.position.set(x, 0, 4.6 + rr(-0.35, 0.35));
+  scene.add(m); addShadow(m);
+}
+
+// Small floating islets, each with one fern.
+[[-27, -8, 3.4, 2.6], [69, 3, 2.6, 2.0], [63, -18, 1.9, 1.5]].forEach(([x, z, rx, rz]) => {
+  const o = blobOutline(x, z, rx, rz, 22, 0.16);
+  const m = slab(o, [], 0, rr(1.4, 2.2), matIsland);
+  m.renderOrder = -1;
+  addFern(x + rr(-0.5, 0.5), 0, z + rr(-0.4, 0.4), rr(1.3, 1.8));
+  rock(x + rx * 0.45, z - rz * 0.3, rr(0.35, 0.6));
+});
+
+// Fern materials: toon shading with a gentle wind sway weighted toward the frond tips.
+const uTime = { value: 0 };
+const SWAY = `
+uniform float uTime;
+attribute float aW;
+vec3 sway(vec3 p){
+  float w = aW * aW;
+  float ph = p.x * .23 + p.z * .31;
+  return p + vec3(sin(uTime * 1.15 + ph), 0., cos(uTime * .9 + ph * 1.3)) * .16 * w;
+}`;
+const FLAT_FRAG = `uniform vec3 uColor; uniform float uOpacity;
+void main(){ gl_FragColor = vec4(uColor, uOpacity); }`;
+
+const fernGeo = new THREE.BufferGeometry();
+fernGeo.setAttribute('position', new THREE.Float32BufferAttribute(fernPos, 3));
+fernGeo.setAttribute('aW', new THREE.Float32BufferAttribute(fernW, 1));
+fernGeo.computeVertexNormals();
+const fernMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uBase: { value: new THREE.Color(PAL.ground) }, uTop: { value: new THREE.Color(PAL.roof) },
+    uShade: { value: new THREE.Color(PAL.shade) }, uLight: { value: L },
+    uFog: { value: new THREE.Color(PAL.ground) }, uFogNear: { value: 60 }, uFogFar: { value: 120 },
+    uAO: { value: 0 }, uTime
+  },
+  vertexShader: `${SWAY}
+varying vec3 vN; varying vec3 vW;
+void main(){ vec3 p = sway(position); vW = p; vN = normal; gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.); }`,
+  fragmentShader: FRAG.replace('vec3 n = normalize(vN);', 'vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n;'),
+  side: THREE.DoubleSide
+});
+const fernMesh = new THREE.Mesh(fernGeo, fernMat);
+fernMesh.frustumCulled = false;
+scene.add(fernMesh);
+
+const rachGeo = new THREE.BufferGeometry();
+rachGeo.setAttribute('position', new THREE.Float32BufferAttribute(rachPos, 3));
+rachGeo.setAttribute('aW', new THREE.Float32BufferAttribute(rachW, 1));
+const rachMat = new THREE.ShaderMaterial({
+  uniforms: { uTime, uColor: { value: new THREE.Color(PAL.ink) }, uOpacity: { value: 0.6 } },
+  vertexShader: `${SWAY}
+void main(){ gl_Position = projectionMatrix * viewMatrix * vec4(sway(position), 1.); }`,
+  fragmentShader: FLAT_FRAG, transparent: true, depthWrite: false
+});
+const rachLines = new THREE.LineSegments(rachGeo, rachMat);
+rachLines.frustumCulled = false;
+scene.add(rachLines);
+
+// Fern shadows sway with the ferns: same displacement, then the planar projection.
+const fernShadowMat = new THREE.ShaderMaterial({
+  uniforms: { uTime, uShadow: { value: SM_GROUND }, uColor: { value: new THREE.Color(0x6a6658) }, uOpacity: { value: 0.22 } },
+  vertexShader: `${SWAY}
+uniform mat4 uShadow;
+void main(){ gl_Position = projectionMatrix * viewMatrix * (uShadow * vec4(sway(position), 1.)); }`,
+  fragmentShader: FLAT_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide
+});
+['stencilWrite', 'stencilRef', 'stencilFunc', 'stencilZPass', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits']
+  .forEach(k => { fernShadowMat[k] = shadowMat[k]; });
+const fernShadow = new THREE.Mesh(fernGeo, fernShadowMat);
+fernShadow.frustumCulled = false;
+fernShadow.renderOrder = 2;
+scene.add(fernShadow);
+
+// ---------------------------------------------------------------- gates (the only red)
+const postGeo = new THREE.BoxGeometry(0.16, 1, 0.16); postGeo.translate(0, 0.5, 0);
+const barGeo = new THREE.BoxGeometry(4.46, 0.16, 0.16);
+let gates = [];
+function makeGate(s) {
+  const group = new THREE.Group();
+  group.position.set(s.x, s.h, 0);
+  const pl = new THREE.Mesh(postGeo, matAccent); pl.position.x = -2.15;
+  const pr = new THREE.Mesh(postGeo, matAccent); pr.position.x = 2.15;
+  const top = new THREE.Mesh(barGeo, matAccent);
+  const bot = new THREE.Mesh(barGeo, matAccent);
+  group.add(pl, pr, top, bot);
+  scene.add(group);
+  const gate = { group, pl, pr, top, bot, sink: 0, sinkTarget: 0, baseY: s.h };
+  [pl, pr, top, bot].forEach(o => addShadow(o, () => gate.sink < 0.04));
+  return gate;
+}
+function buildGates() {
+  gates.forEach(g => { [g.pl, g.pr, g.top, g.bot].forEach(removeShadow); scene.remove(g.group); });
+  gates = SCALE.map(makeGate);
+}
+buildGates();
+function layoutGate(g, tolUnits) {
+  const ty = HOVER + tolUnits, by = HOVER - tolUnits, ph = ty + 0.5;
+  g.top.position.y = ty; g.bot.position.y = by;
+  g.pl.scale.y = ph; g.pr.scale.y = ph;
+  g.height = ph;
+}
+
+// ---------------------------------------------------------------- the mouth
+function lipGeo(upper) {
+  const s = new THREE.Shape();
+  const pts = upper
+    ? [[-1.2,0],[-0.75,0.28],[-0.32,0.52],[0,0.36],[0.32,0.52],[0.75,0.28],[1.2,0],[0.6,0.1],[0,0.06],[-0.6,0.1]]
+    : [[-1.2,0],[-0.6,-0.08],[0,-0.04],[0.6,-0.08],[1.2,0],[0.8,-0.34],[0.3,-0.56],[-0.3,-0.56],[-0.8,-0.34]];
+  s.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+  s.lineTo(pts[0][0], pts[0][1]);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.55, bevelEnabled: false, curveSegments: 1 });
+  g.translate(0, 0, -0.275);
+  return flat(g);
+}
+const mouth = new THREE.Group();
+const face = new THREE.Group();
+face.rotation.x = -0.95;                 // tilt toward the camera, keep some depth
+face.scale.setScalar(0.9);
+const lipU = new THREE.Mesh(lipGeo(true), matInk);
+const lipL = new THREE.Mesh(lipGeo(false), matInk);
+const teeth = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.15, 0.3), matTeeth);
+teeth.position.set(0, -0.02, 0.06);
+const cavity = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1, 0.12), matCavity);
+cavity.position.z = -0.16;
+face.add(cavity, teeth, lipU, lipL);
+mouth.add(face);
+scene.add(mouth);
+addShadow(lipU); addShadow(lipL);
+
+// plumb line from mouth to block top: makes height readable from above
+const plumbGeo = new THREE.BufferGeometry();
+plumbGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+const plumb = new THREE.Line(plumbGeo, new THREE.LineBasicMaterial({ color: PAL.ink, transparent: true, opacity: 0.45 }));
+plumb.frustumCulled = false;
+scene.add(plumb);
+
+// ---------------------------------------------------------------- voice trail (the "tyre marks")
+const MAXP = 900;
+let runMat = null;
+const runs = [];            // [{ mat, lines: [] }]
+let curLines = null;
+function newRun() {
+  runs.forEach(r => { r.mat.opacity = 0.22; });
+  while (runs.length > 1) {          // keep current + previous run only
+    const old = runs.shift();
+    old.lines.forEach(l => { scene.remove(l); l.geometry.dispose(); });
+    old.mat.dispose();
+  }
+  runMat = new THREE.LineBasicMaterial({ color: PAL.ink, transparent: true, opacity: 0.85 });
+  runs.push({ mat: runMat, lines: [] });
+}
+function newNoteLines() {
+  curLines = [-0.32, 0, 0.32].map(dz => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 3), 3));
+    g.setDrawRange(0, 0);
+    const l = new THREE.Line(g, runMat);
+    l.frustumCulled = false;
+    l.userData = { dz, n: 0 };
+    scene.add(l);
+    runs[runs.length - 1].lines.push(l);
+    return l;
+  });
+}
+function pushTrail(x, y, z) {
+  if (!curLines) return;
+  for (const l of curLines) {
+    const u = l.userData;
+    if (u.n >= MAXP) continue;
+    const a = l.geometry.attributes.position;
+    a.array[u.n * 3] = x; a.array[u.n * 3 + 1] = y; a.array[u.n * 3 + 2] = z + u.dz;
+    u.n++;
+    a.needsUpdate = true;
+    l.geometry.setDrawRange(0, u.n);
+  }
+}
+function setTrailVisible(v) { if (curLines) curLines.forEach(l => { l.visible = v; }); }
+
+// ---------------------------------------------------------------- audio
+let AC = null, doubling = null, analyser = null, micBuf = null;
+function ensureAudio() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === 'suspended') AC.resume();
+}
+function tone(freq, dur, vol) {
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+  o.type = 'triangle'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.03);
+  g.gain.setValueAtTime(vol, t + dur - 0.15);
+  g.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(g).connect(AC.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function startDoubling(freq) {
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+  o.type = 'triangle'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.045, t + 0.2);
+  o.connect(g).connect(AC.destination); o.start(t);
+  doubling = { o, g };
+}
+function stopDoubling() {
+  if (!doubling || !AC) return;
+  const t = AC.currentTime;
+  doubling.g.gain.cancelScheduledValues(t);
+  doubling.g.gain.setValueAtTime(doubling.g.gain.value, t);
+  doubling.g.gain.linearRampToValueAtTime(0, t + 0.15);
+  doubling.o.stop(t + 0.2);
+  doubling = null;
+}
+
+// YIN pitch detector (cumulative mean normalized difference)
+const yinD = new Float32Array(1100);
+function yin(buf, sr) {
+  let rms = 0;
+  for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / buf.length);
+  if (rms < 0.008) return null;
+  const W = 1024, maxTau = Math.min(1023, Math.floor(sr / 65)), minTau = Math.floor(sr / 1100);
+  yinD[0] = 1;
+  let run = 0;
+  for (let tau = 1; tau <= maxTau; tau++) {
+    let s = 0;
+    for (let j = 0; j < W; j++) { const d = buf[j] - buf[j + tau]; s += d * d; }
+    run += s;
+    yinD[tau] = run > 0 ? s * tau / run : 1;
+  }
+  let tau = -1;
+  for (let t = minTau; t <= maxTau; t++) {
+    if (yinD[t] < 0.15) {
+      while (t + 1 <= maxTau && yinD[t + 1] < yinD[t]) t++;
+      tau = t; break;
+    }
+  }
+  if (tau < 1) return null;
+  const a = yinD[tau - 1], b = yinD[tau], c = tau + 1 <= maxTau ? yinD[tau + 1] : b;
+  const den = a - 2 * b + c;
+  const shift = den !== 0 ? 0.5 * (a - c) / den : 0;
+  return sr / (tau + shift);
+}
+async function enableMic() {
+  ensureAudio();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    const src = AC.createMediaStreamSource(stream);
+    analyser = AC.createAnalyser();
+    analyser.fftSize = 2048;
+    src.connect(analyser);
+    micBuf = new Float32Array(analyser.fftSize);
+    return true;
+  } catch (e) { return false; }
+}
+
+// ---------------------------------------------------------------- voice sources
+// Each returns cents relative to the target (octave-folded), or null when unvoiced.
+let skill = 0;
+const demoSinger = {
+  start() {
+    this.t = 0;
+    const spread = Math.max(8, 34 - skill * 3);
+    this.err = (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 90);
+    this.bias = (Math.random() - 0.5) * 2 * spread;
+    this.rate = 1.1 + Math.random() * 1.6;
+    this.onset = 0.12 + Math.random() * 0.3;
+  },
+  sample(dt) {
+    this.t += dt;
+    if (this.t < this.onset) return null;
+    this.err += (this.bias - this.err) * (1 - Math.exp(-this.rate * dt));
+    const vib = Math.sin(this.t * 2 * Math.PI * 5.4) * 9 * Math.min(1, (this.t - this.onset) / 1.2);
+    return this.err + vib + (Math.random() - 0.5) * 4;
+  }
+};
+let pointerY = null;
+addEventListener('pointermove', e => { pointerY = e.clientY; }, { passive: true });
+const pointerSinger = {
+  start() {},
+  sample() {
+    if (pointerY == null) return null;
+    return (0.5 - pointerY / innerHeight) * 320;  // screen middle = in tune
+  }
+};
+const micHist = [];
+const micSinger = {
+  start() { micHist.length = 0; },
+  sample(dt, st) {
+    if (!analyser) return null;
+    analyser.getFloatTimeDomainData(micBuf);
+    const f = yin(micBuf, AC.sampleRate);
+    if (!f) { micHist.length = 0; return null; }
+    let c = 1200 * Math.log2(f / st.f);
+    c = ((c % 1200) + 1800) % 1200 - 600;       // fold octaves into ±600
+    micHist.push(c); if (micHist.length > 5) micHist.shift();
+    const sorted = [...micHist].sort((a, b) => a - b);
+    return sorted[sorted.length >> 1];
+  }
+};
+const SINGERS = { demo: demoSinger, pointer: pointerSinger, mic: micSinger };
+
+// ---------------------------------------------------------------- state
+const S = {
+  phase: 'intro', t: 0, step: 0, mode: 'guided', src: 'demo',
+  tol: 40, tolDisp: 40, tolRunStart: 40, streak: 0,
+  results: [], allSettled: [],
+  samples: [], firstVoiced: null, holdStart: null, lastC: null, dispC: 0,
+  travelFrom: null, travelTo: 0, travelDur: TRAVEL
+};
+const M = { x: SCALE[0].x - 0.9, y: SCALE[0].h + HOVER, open: 0.08, roll: 0, yaw: 0, vy: 0 };
+const CAM = { x: 21, y: 2, dist: 76, yaw: 0 };
+
+// ---------------------------------------------------------------- HUD
+const el = {
+  note: $('#noteName'), sub: $('#noteSub'), cents: $('#centsVal'), dir: $('#dirText'), phaseLbl: $('#phaseLbl'),
+  steps: $('#steps'), log: $('#log'), tolVal: $('#tolVal'), tolGap: $('#tolGap'), tolNote: $('#tolNote'),
+  med: $('#medVal'), n: $('#nVal'), srcNote: $('#srcNote')
+};
+function buildStepsHud() {
+  el.steps.innerHTML = '';
+  el.steps.style.setProperty('--n', SCALE.length);
+  SCALE.forEach((s, i) => {
+    const li = document.createElement('li');
+    li.className = 'todo';
+    li.innerHTML = `<span class="num">${String(i + 1).padStart(2, '0')}</span><span class="nn">${s.n}</span><span class="res"></span>`;
+    el.steps.appendChild(li);
+  });
+}
+function updateIntroText() {
+  const ex = EXERCISES[EXERCISE];
+  const lo = SCALE.reduce((a, b) => (b.s < a.s ? b : a)), hi = SCALE.reduce((a, b) => (b.s > a.s ? b : a));
+  $('#introWhat').textContent = `${ex.name}: ${SCALE.length} notes, ${lo.n} to ${hi.n}. Choose another scale or an arpeggio above. Octaves are folded, so any voice range works.`;
+}
+buildStepsHud();
+updateIntroText();
+const fmtC = v => { const r = Math.round(v); return r === 0 ? '0' : (r > 0 ? '+' : '\u2212') + Math.abs(r); };
+const median = a => {
+  if (!a.length) return null;
+  const b = [...a].sort((x, y) => x - y), m = b.length >> 1;
+  return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2;
+};
+function hudNote() {
+  const s = SCALE[S.step];
+  el.note.textContent = s.n;
+  el.sub.textContent = `Note ${s.i + 1} of ${SCALE.length}, ${s.f.toFixed(1)} Hz`;
+  [...el.steps.children].forEach((li, i) => {
+    const r = S.results[i];
+    li.className = r ? (r.passed ? 'pass' : 'miss') : (i === S.step && S.phase !== 'summary' ? 'current' : 'todo');
+    li.querySelector('.res').textContent = r ? (r.settled == null ? 'no voice' : fmtC(r.settled) + '¢') : '';
+  });
+}
+function hudTol() {
+  el.tolVal.textContent = '±' + S.tol;
+  el.tolGap.style.width = (S.tol / TOL_MAX * 100).toFixed(1) + '%';
+  el.tolNote.textContent = S.streak === 1 ? 'One more clean pass narrows it' : 'Two clean passes narrow it';
+}
+function hudStats() {
+  const m = median(S.allSettled.map(Math.abs));
+  el.med.textContent = m == null ? '—' : Math.round(m) + '¢';
+  el.n.textContent = S.allSettled.length ? `Over ${S.allSettled.length} sung note${S.allSettled.length > 1 ? 's' : ''}` : 'No notes yet';
+}
+function hudLog(s, r) {
+  const li = document.createElement('li');
+  const err = r.settled == null ? 'no voice' : `${fmtC(r.settled)}¢`;
+  const tm = r.passed ? `${r.settleTime.toFixed(2)} s` : 'missed';
+  li.innerHTML = `<b>${s.n}</b><span>${err}</span><span>${tm}</span>`;
+  el.log.prepend(li);
+  while (el.log.children.length > 6) el.log.lastChild.remove();
+}
+function setPhaseText(lbl, cents, dir) {
+  el.phaseLbl.textContent = lbl;
+  el.cents.textContent = cents;
+  el.dir.textContent = dir;
+}
+
+// ---------------------------------------------------------------- flow
+function setBodyState(name) {
+  document.body.classList.remove('state-intro', 'state-session', 'state-summary');
+  document.body.classList.add('state-' + name);
+}
+function begin() {
+  ensureAudio();
+  $('#intro').hidden = true;
+  document.body.classList.remove('show-grid');
+  setBodyState('session');
+  newRun();
+  S.tolRunStart = S.tol;
+  S.step = 0;
+  startListen();
+}
+function again() {
+  $('#summary').hidden = true;
+  setBodyState('session');
+  S.results = [];
+  el.log.innerHTML = '';
+  gates.forEach(g => { g.sinkTarget = 0; g.group.visible = true; });
+  newRun();
+  S.tolRunStart = S.tol;
+  startTravel(0, 2.0);
+}
+function clearRuns() {
+  runs.forEach(r => {
+    r.lines.forEach(l => { scene.remove(l); l.geometry.dispose(); });
+    r.mat.dispose();
+  });
+  runs.length = 0;
+  curLines = null;
+}
+function setExercise(id) {
+  if (!EXERCISES[id] || id === EXERCISE) return;
+  EXERCISE = id;
+  stopDoubling();
+  buildScale(id); buildBlocks(); buildGates(); buildStepsHud(); updateIntroText();
+  clearRuns();                       // old contours would float over the old staircase
+  S.results = []; S.step = 0;
+  el.log.innerHTML = '';
+  if (S.phase === 'intro') { M.x = SCALE[0].x - 0.9; hudNote(); return; }
+  if (S.phase === 'summary') { $('#summary').hidden = true; setBodyState('session'); }
+  newRun();
+  S.tolRunStart = S.tol;
+  hudNote();
+  setPhaseText('Target', '—', 'New exercise');
+  startTravel(0, 1.6);
+}
+function startListen() {
+  S.phase = 'listen'; S.t = 0;
+  hudNote();
+  tone(SCALE[S.step].f, 0.95, 0.16);
+  setPhaseText('Target', '—', 'Listen');
+}
+function beginSing() {
+  const st = SCALE[S.step];
+  S.phase = 'sing'; S.t = 0;
+  S.samples = []; S.firstVoiced = null; S.holdStart = null; S.lastC = null;
+  SINGERS[S.src].start(st);
+  newNoteLines();
+  if (S.mode === 'unaided') setTrailVisible(false);
+  if (S.mode === 'guided') startDoubling(st.f);
+  setPhaseText('Target', S.mode === 'guided' ? '0' : '—',
+    S.mode === 'unaided' ? 'Sing from memory' : 'Sing');
+}
+function finishNote(passed) {
+  const st = SCALE[S.step];
+  stopDoubling();
+  const v = S.samples;
+  const settledSet = passed ? v.filter(s => s.t >= S.holdStart) : v.filter(s => s.t >= S.t - 1);
+  const settled = median(settledSet.map(s => s.c));
+  const onset = S.firstVoiced == null ? null : median(v.filter(s => s.t <= S.firstVoiced + 0.15).map(s => s.c));
+  const settleTime = passed ? Math.max(0, S.holdStart - S.firstVoiced) : null;
+  const r = { passed, settled, onset, settleTime };
+  S.results[S.step] = r;
+  if (settled != null) S.allSettled.push(settled);
+
+  // adaptive staircase: 2 clean passes tighten, 1 miss loosens
+  if (passed) {
+    S.streak++;
+    skill++;
+    if (S.streak >= 2) { S.tol = Math.max(TOL_MIN, Math.round(S.tol * 0.85)); S.streak = 0; }
+  } else {
+    S.streak = 0;
+    S.tol = Math.min(TOL_MAX, Math.round(S.tol * 1.15));
+  }
+  gates[S.step].sinkTarget = 1;
+  setTrailVisible(true);
+  curLines = null;
+
+  const word = settled == null ? 'No voice detected' :
+    Math.abs(settled) < 0.5 ? 'dead on' : `${Math.abs(Math.round(settled))}¢ ${settled < 0 ? 'flat' : 'sharp'}`;
+  setPhaseText(passed ? 'Passed' : 'Missed', settled == null ? '—' : fmtC(settled),
+    passed ? `Settled ${word}` : (settled == null ? word : `Ended ${word}`));
+  hudLog(st, r); hudTol(); hudStats(); hudNote();
+  S.phase = 'result'; S.t = 0;
+}
+function startTravel(to, dur) {
+  S.phase = 'travel'; S.t = 0;
+  S.travelFrom = { x: M.x, y: M.y };
+  S.travelTo = to; S.travelDur = dur;
+}
+function arrive() {
+  S.step = S.travelTo;
+  startListen();
+}
+function toSummary() {
+  S.phase = 'summary'; S.t = 0;
+  setBodyState('summary');
+  hudNote();
+  const passed = S.results.filter(r => r && r.passed).length;
+  const med = median(S.results.filter(r => r && r.settled != null).map(r => Math.abs(r.settled)));
+  $('#sumPass').textContent = `${passed} of ${SCALE.length}`;
+  $('#sumMed').textContent = med == null ? '—' : `${Math.round(med)}¢`;
+  $('#sumTol').textContent = `±${S.tolRunStart} to ±${S.tol}`;
+  $('#summary').hidden = false;
+}
+
+// ---------------------------------------------------------------- per-frame logic
+const ease = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerpK = (k, dt) => 1 - Math.pow(1 - k, dt * 60);   // frame-rate independent lerp
+const clampOff = (o) => Math.max(-(HOVER - 0.7), Math.min(7.5, o));
+
+function update(dt, now) {
+  S.t += dt;
+  const st = SCALE[S.step];
+  let targetY = M.y, open = 0.08, voiced = false;
+
+  switch (S.phase) {
+    case 'intro':
+      M.x = st.x - 0.9;
+      targetY = st.h + HOVER + Math.sin(now * 1.6) * 0.15;
+      break;
+    case 'listen':
+      M.x = st.x - 0.9;
+      targetY = st.h + HOVER + Math.sin(now * 2) * 0.1;
+      open = 0.12;
+      if (S.t >= LISTEN) beginSing();
+      break;
+    case 'sing': {
+      const c = SINGERS[S.src].sample(dt, st);
+      if (c != null) {
+        voiced = true;
+        if (S.firstVoiced == null) S.firstVoiced = S.t;
+        S.samples.push({ t: S.t, c });
+        S.lastC = c;
+        if (Math.abs(c) <= S.tol) {
+          if (S.holdStart == null) S.holdStart = S.t;
+          if (S.t - S.holdStart >= HOLD) { finishNote(true); break; }
+        } else S.holdStart = null;
+      } else S.holdStart = null;
+      if (S.t >= NOTE_MAX) { finishNote(false); break; }
+
+      M.x = st.x - 0.9 + 1.8 * Math.min(S.t / NOTE_MAX, 1);
+      targetY = st.h + HOVER + clampOff((S.lastC == null ? 0 : S.lastC) * K);
+      open = voiced ? 0.5 + 0.12 * Math.sin(now * 6) : 0.08;
+      if (voiced) pushTrail(M.x, M.y - 0.05, 0);
+
+      // readout
+      if (S.lastC != null) S.dispC += (S.lastC - S.dispC) * lerpK(0.25, dt);
+      if (S.mode === 'guided') {
+        el.cents.textContent = S.lastC == null ? '—' : fmtC(S.dispC);
+        el.dir.textContent = S.lastC == null ? 'Sing' :
+          S.lastC < -S.tol ? '\u2191 Sing higher' : S.lastC > S.tol ? '\u2193 Sing lower' : 'Hold it';
+      } else if (S.mode === 'trace') {
+        el.cents.textContent = '—';
+        el.dir.textContent = S.lastC == null ? 'Sing' : 'Watch the mouth';
+      }
+      break;
+    }
+    case 'result':
+      M.x = M.x; targetY = M.y;
+      if (S.t >= RESULT) {
+        if (S.step >= SCALE.length - 1) toSummary();
+        else startTravel(S.step + 1, TRAVEL);
+      }
+      break;
+    case 'travel': {
+      const to = SCALE[S.travelTo];
+      const e = ease(Math.min(S.t / S.travelDur, 1));
+      M.x = S.travelFrom.x + (to.x - 0.9 - S.travelFrom.x) * e;
+      targetY = S.travelFrom.y + (to.h + HOVER - S.travelFrom.y) * e + Math.sin(Math.PI * e) * 1.6;
+      M.y = targetY;
+      if (S.t >= S.travelDur) arrive();
+      break;
+    }
+    case 'summary':
+      targetY = M.y + Math.sin(now * 1.4) * 0.004;
+      break;
+  }
+
+  // mouth motion: eased height, roll leads the pitch change (the "drift read")
+  const prevY = M.y;
+  if (S.phase !== 'travel') M.y += (targetY - M.y) * lerpK(0.16, dt);
+  const vy = (M.y - prevY) / Math.max(dt, 1e-3);
+  M.vy += (vy - M.vy) * lerpK(0.2, dt);
+  M.roll += (Math.max(-0.5, Math.min(0.5, -M.vy * 0.09)) - M.roll) * lerpK(0.12, dt);
+  M.open += (open - M.open) * lerpK(0.2, dt);
+
+  mouth.position.set(M.x, M.y, 0);
+  mouth.rotation.z = M.roll;
+  lipL.position.y = -M.open * 0.5;
+  cavity.scale.y = 0.08 + M.open * 0.55;
+  cavity.position.y = -M.open * 0.27;
+  const hideMouth = S.phase === 'sing' && S.mode === 'unaided';
+  mouth.visible = !hideMouth;
+
+  // plumb line
+  const p = plumbGeo.attributes.position.array;
+  const blockTop = (S.phase === 'travel' ? SCALE[S.travelTo] : st).h;
+  p[0] = M.x; p[1] = M.y - 0.45; p[2] = 0;
+  p[3] = M.x; p[4] = Math.min(blockTop + 0.02, M.y - 0.45); p[5] = 0;
+  plumbGeo.attributes.position.needsUpdate = true;
+  plumb.visible = S.phase === 'sing' && S.mode !== 'unaided';
+
+  // gates follow the displayed tolerance; passed gates sink into their block
+  S.tolDisp += (S.tol - S.tolDisp) * lerpK(0.06, dt);
+  gates.forEach(g => {
+    layoutGate(g, S.tolDisp * K);
+    g.sink += (g.sinkTarget - g.sink) * lerpK(0.07, dt);
+    g.group.position.y = g.baseY - g.sink * (g.height + 0.3);
+    g.group.visible = g.sink < 0.985;
+  });
+
+  // camera: lazy follow, slow yaw sway, establishing shot on intro and summary
+  const wide = S.phase === 'intro' || S.phase === 'summary';
+  const tx = wide ? 21 + (reduceMotion ? 0 : Math.sin(now * 0.07) * 5) : M.x + 1.5;
+  const ty = wide ? 2 : blockTop + 4;
+  const portrait = innerWidth < innerHeight;
+  const td = (wide ? 78 : 46) * (portrait ? 1.55 : 1);
+  CAM.x += (tx - CAM.x) * lerpK(0.06, dt);
+  CAM.y += (ty - CAM.y) * lerpK(0.06, dt);
+  CAM.dist += (td - CAM.dist) * lerpK(0.03, dt);
+  CAM.yaw = reduceMotion ? 0 : Math.sin(now * 0.11) * 0.18;
+  const P = 66 * Math.PI / 180;
+  camera.position.set(
+    CAM.x + Math.sin(CAM.yaw) * Math.cos(P) * CAM.dist,
+    CAM.y + Math.sin(P) * CAM.dist,
+    Math.cos(CAM.yaw) * Math.cos(P) * CAM.dist
+  );
+  camera.lookAt(CAM.x, CAM.y, 0);
+}
+
+function updateShadows() {
+  scene.updateMatrixWorld();
+  for (const c of casters) {
+    const v = chainVisible(c.src) && (!c.cond || c.cond());
+    c.m.visible = v;
+    if (v) c.m.matrix.multiplyMatrices(SM_GROUND, c.src.matrixWorld);
+  }
+}
+
+// ---------------------------------------------------------------- layout
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  if (w > 860) camera.setViewOffset(w, h, -w * 0.15, 0, w, h);   // push the diorama right of the type column
+  else camera.setViewOffset(w, h, 0, -h * 0.12, w, h);           // push it down under the note name
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------------------------------------------------------------- controls
+function setMode(m) {
+  S.mode = m;
+  document.querySelectorAll('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+  document.body.classList.remove('mode-guided', 'mode-trace', 'mode-unaided');
+  document.body.classList.add('mode-' + m);
+  if (S.phase === 'sing') {
+    if (m !== 'guided') stopDoubling(); else if (!doubling) startDoubling(SCALE[S.step].f);
+    setTrailVisible(m !== 'unaided');
+  }
+}
+async function setSrc(src) {
+  el.srcNote.textContent = '';
+  if (src === 'mic' && !analyser) {
+    el.srcNote.textContent = 'Asking for microphone access';
+    const ok = await enableMic();
+    if (!ok) {
+      el.srcNote.textContent = 'Microphone blocked here. Download the file and open it locally, or use Pointer.';
+      return;
+    }
+    el.srcNote.textContent = '';
+  }
+  if (src === 'pointer') el.srcNote.textContent = 'Higher on screen means higher pitch';
+  S.src = src;
+  document.querySelectorAll('#srcSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.src === src)));
+}
+document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+document.querySelectorAll('#srcSeg button').forEach(b => b.addEventListener('click', () => setSrc(b.dataset.src)));
+$('#exSel').addEventListener('change', e => { setExercise(e.target.value); e.target.blur(); });
+$('#beginBtn').addEventListener('click', begin);
+$('#againBtn').addEventListener('click', again);
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && researchOpen) { closeResearch(); return; }
+  if (e.key === 'r' || e.key === 'R') { researchOpen ? closeResearch() : openResearch(); return; }
+  if (researchOpen) return;
+  if (e.target && e.target.tagName === 'SELECT') return;
+  const onButton = e.target && e.target.closest && e.target.closest('button');
+  if (e.code === 'Space' && !onButton) {
+    e.preventDefault();
+    if (S.phase === 'intro') begin();
+    else if (S.phase === 'summary') again();
+    else if (S.phase === 'listen' || S.phase === 'sing') tone(SCALE[S.step].f, 0.95, 0.16);
+  }
+  if (e.key === 'g' || e.key === 'G') document.body.classList.toggle('show-grid');
+  if (e.key === '1') setMode('guided');
+  if (e.key === '2') setMode('trace');
+  if (e.key === '3') setMode('unaided');
+});
+
+// ---------------------------------------------------------------- research page
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function svgText(parent, x, y, str, cls = 'svgt', anchor = 'start') {
+  const t = svgEl('text', { x, y, class: cls, 'text-anchor': anchor }, parent);
+  t.textContent = str;
+  return t;
+}
+function drawPath(parent, d, attrs, delayMs) {
+  const p = svgEl('path', Object.assign({ d, fill: 'none', class: 'draw' }, attrs), parent);
+  const len = Math.ceil(p.getTotalLength ? p.getTotalLength() : 200) + 2;
+  p.style.setProperty('--len', len);
+  p.style.transitionDelay = delayMs + 'ms';
+  return p;
+}
+function countUp(node, to, dec, dur, suffix) {
+  if (reduceMotion) { node.textContent = to.toFixed(dec) + suffix; return; }
+  const t0 = performance.now();
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    node.textContent = (to * e).toFixed(dec) + suffix;
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// 200 people: 3 filled = 1.5% today, 8 ringed = the older 4% estimate
+function figPrevalence(slot, section) {
+  const svg = svgEl('svg', { viewBox: '0 0 420 212', role: 'img',
+    'aria-label': '200 dots representing people. 3 are filled, the 1.5 percent estimate. 8 are ringed, the older 4 percent estimate.' }, slot);
+  const now = new Set([37, 118, 171]);
+  const old = new Set([37, 118, 171, 12, 64, 93, 146, 189]);
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 20; c++) {
+    const i = r * 20 + c, x = 11 + c * 20.9, y = 11 + r * 20.9;
+    const d = svgEl('circle', { cx: x, cy: y, r: 5.6, class: 'pdot' + (now.has(i) ? ' amusic' : '') }, svg);
+    d.style.transitionDelay = `${(r + c) * 14}ms, ${now.has(i) ? 1250 : 0}ms`;
+    if (old.has(i)) {
+      const ring = svgEl('circle', { cx: x, cy: y, r: 8.7, class: 'pring' }, svg);
+      ring.style.transitionDelay = '2100ms';
+    }
+  }
+  return () => { svg.classList.add('on'); setTimeout(() => countUp(section.querySelector('[data-count]'), 1.5, 1, 1300, '%'), 900); };
+}
+
+// three randomized groups; only the visual-feedback group shows a significant gain
+function figFeedback(slot) {
+  const svg = svgEl('svg', { viewBox: '0 0 420 262', role: 'img',
+    'aria-label': 'Three groups: see and hear, 25 people, significant gain. Hear only, 23 people, no significant gain. Control, 27 people, no significant gain.' }, slot);
+  const groups = [
+    { n: 25, label: 'See and hear', x: 18, sig: true },
+    { n: 23, label: 'Hear only', x: 158 },
+    { n: 27, label: 'Control', x: 298 }
+  ];
+  groups.forEach((g, gi) => {
+    for (let i = 0; i < g.n; i++) {
+      const row = Math.floor(i / 5), col = i % 5;
+      const d = svgEl('circle', { cx: g.x + 12 + col * 19, cy: 200 - row * 19, r: 6, class: 'gdot' }, svg);
+      d.style.transitionDelay = `${gi * 160 + i * 24}ms`;
+    }
+    const cx = g.x + 50;
+    if (g.sig) {
+      drawPath(svg, `M${cx} 92 L${cx} 30 M${cx - 9} 41 L${cx} 30 L${cx + 9} 41`,
+        { stroke: 'var(--accent)', 'stroke-width': 3, 'stroke-linecap': 'square' }, 1300);
+      const t = svgText(svg, cx, 18, 'Significant gain', 'svgt b late', 'middle'); t.style.transitionDelay = '1700ms';
+    } else {
+      drawPath(svg, `M${cx - 22} 76 L${cx + 22} 76`, { stroke: 'var(--ink)', 'stroke-width': 2 }, 1300 + gi * 120);
+      const t = svgText(svg, cx, 62, 'No significant gain', 'svgt late', 'middle'); t.style.transitionDelay = (1700 + gi * 120) + 'ms';
+    }
+    svgText(svg, cx, 232, g.label, 'svgt b', 'middle');
+    svgText(svg, cx, 250, `${g.n} people`, 'svgt', 'middle');
+  });
+  return () => svg.classList.add('on');
+}
+
+// octave vs fifth training range on a one-octave semitone strip
+function figRange(slot) {
+  const svg = svgEl('svg', { viewBox: '0 0 420 214', role: 'img',
+    'aria-label': 'A one-octave strip of 13 semitones. The octave group trained across all 12 semitones and improved. The fifth group trained across 7 semitones and showed no significant change.' }, slot);
+  const black = new Set([1, 3, 6, 8, 10]), names = { 0: 'C', 2: 'D', 4: 'E', 5: 'F', 7: 'G', 9: 'A', 11: 'B', 12: 'C' };
+  const W = 30.6, X0 = 10;
+  for (let i = 0; i <= 12; i++) {
+    svgEl('rect', { x: X0 + i * W, y: 10, width: W - 3, height: 52,
+      fill: black.has(i) ? 'var(--shade)' : 'var(--roof)', stroke: 'var(--ink)', 'stroke-width': 1 }, svg);
+    if (names[i]) svgText(svg, X0 + i * W + (W - 3) / 2, 80, names[i], 'svgt', 'middle');
+  }
+  const bar = (y, semis, label, sig, delay) => {
+    const w = semis * W + (W - 3);
+    svgText(svg, X0, y - 8, label, 'svgt b');
+    const r = svgEl('rect', { x: X0, y, width: w, height: 14, fill: 'var(--ink)', class: 'grow' }, svg);
+    r.style.transitionDelay = delay + 'ms';
+    const m = svgEl('circle', { cx: X0 + w + 14, cy: y + 7, r: 6,
+      fill: sig ? 'var(--accent)' : 'none', stroke: sig ? 'none' : 'var(--ink)', 'stroke-width': 1.5, class: 'late' }, svg);
+    m.style.transitionDelay = (delay + 1300) + 'ms';
+  };
+  bar(124, 12, 'Octave group, 12 semitones', true, 200);
+  bar(184, 7, 'Fifth group, 7 semitones', false, 500);
+  return () => svg.classList.add('on');
+}
+
+// one 20-minute session against 180 sessions of 20 minutes
+function figHorizon(slot) {
+  const svg = svgEl('svg', { viewBox: '0 0 420 176', role: 'img',
+    'aria-label': 'Two bars to scale. The studies: one 20-minute session, a sliver. This plan: 60 hours, the full width.' }, slot);
+  const FULL = 400, X0 = 10, sliver = Math.max(2.5, FULL * 20 / 3600);
+  svgText(svg, X0, 22, 'Studies above: one session, about 20 minutes', 'svgt b');
+  svgEl('rect', { x: X0, y: 32, width: sliver, height: 22, fill: 'var(--ink)' }, svg);
+  svgText(svg, X0, 92, 'This plan: 6 months, about 60 hours', 'svgt b');
+  const r = svgEl('rect', { x: X0, y: 102, width: FULL, height: 22, fill: 'var(--shade)', class: 'grow' }, svg);
+  r.style.transitionDelay = '300ms';
+  r.style.transitionDuration = '2.4s';
+  drawPath(svg, `M${X0 + sliver} 30 L${X0 + sliver} 150`, { stroke: 'var(--ink)', 'stroke-width': 1, 'stroke-dasharray': '3 4' }, 0)
+    .classList.remove('draw');
+  const t = svgText(svg, X0 + sliver + 8, 152, 'Everything right of this line is extrapolation', 'svgt late');
+  t.style.transitionDelay = '2600ms';
+  return () => svg.classList.add('on');
+}
+
+const FIGS = { prevalence: figPrevalence, feedback: figFeedback, range: figRange, horizon: figHorizon };
+const researchEl = $('#research');
+const figPlays = new Map();
+researchEl.querySelectorAll('.finding').forEach(sec => {
+  const play = FIGS[sec.dataset.fig](sec.querySelector('.figslot'), sec);
+  figPlays.set(sec, { play, done: false });
+});
+const figObserver = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    const f = figPlays.get(en.target);
+    if (en.isIntersecting && f && !f.done) { f.done = true; f.play(); }
+  });
+}, { root: researchEl, threshold: 0.35 });
+figPlays.forEach((_, sec) => figObserver.observe(sec));
+
+let researchOpen = false, researchReturn = null;
+function openResearch() {
+  if (researchOpen) return;
+  researchOpen = true;
+  researchReturn = document.activeElement;
+  stopDoubling();
+  researchEl.hidden = false;
+  researchEl.scrollTop = 0;
+  $('#researchClose').focus({ preventScroll: true });
+}
+function closeResearch() {
+  if (!researchOpen) return;
+  researchOpen = false;
+  researchEl.hidden = true;
+  // restart an interrupted note cleanly
+  if (S.phase === 'sing' || S.phase === 'listen') {
+    if (curLines) { curLines.forEach(l => { scene.remove(l); l.geometry.dispose(); }); curLines = null; }
+    startListen();
+  }
+  if (researchReturn && researchReturn.focus) researchReturn.focus({ preventScroll: true });
+}
+$('#researchBtn').addEventListener('click', openResearch);
+$('#researchClose').addEventListener('click', closeResearch);
+
+// ---------------------------------------------------------------- loop
+hudNote(); hudTol(); hudStats();
+let last = performance.now();
+function frame(ts) {
+  // the first rAF timestamp can precede performance.now(), so never let dt go negative
+  const dt = Math.max(0, Math.min((ts - last) / 1000, 0.05));
+  last = ts;
+  if (!researchOpen) {
+    uTime.value = reduceMotion ? 0 : ts / 1000;
+    update(dt, ts / 1000);
+    updateShadows();
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
